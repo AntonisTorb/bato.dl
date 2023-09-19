@@ -28,4 +28,4 @@ for f in subfolders:
 
         pdf.image(image_path, x=0, y=0, w=width_mm, h=height_mm)
 
-    pdf.output(f"{fname}_{f}.pdf", "F")
+    pdf.output(f"{fname}_{f}.pdf")
