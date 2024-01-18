@@ -56,8 +56,8 @@ def get_image(page: int, chapter_link: str) -> Image:
 
 def download_manga(chapter, chapter_link, title, cur_dir):
     filedir = (cur_dir / f"Manga/{title}/{chapter}")
-
     pages = determine_page_number(chapter_link)
+    
     try:
         filedir.mkdir(parents=True, exist_ok=False)
     except FileExistsError:
