@@ -75,12 +75,17 @@ def get_image(page: int, chapter_link: str) -> Image:
             return None
 
 def download_manga(chapter, chapter_link, title, cur_dir):
-    filedir = (cur_dir / f"Manga/{title}/{chapter}")
-    try:
-        filedir.mkdir(parents=True, exist_ok=False)
-    except FileExistsError:
-        print(f"Chapter \"{chapter}\" directory exists, skipping download...")
-        return
+    filedir = Path(cur_dir) / f"Manga/{title}/{chapter}"
+    if filedir.exists():
+        existing_files = list(filedir.glob("*.jpg"))
+        if existing_files:
+            print(f"Chapter \"{chapter}\" directory exists, checking for missing pages...")
+            existing_pages = {int(f.stem) for f in existing_files}
+        else:
+            existing_pages = set()
+    else:
+        filedir.mkdir(parents=True, exist_ok=True)
+        existing_pages = set()
 
     pages = determine_page_number(chapter_link)
 
@@ -91,14 +96,22 @@ def download_manga(chapter, chapter_link, title, cur_dir):
     else:
         chapter_length = 1
 
-    for page in range(1, pages + 1):
+    all_pages = set(range(1, pages + 1))
+    missing_pages = all_pages - existing_pages
+
+    if not missing_pages:
+        print(f"All pages of Chapter \"{chapter}\" already downloaded.")
+        return
+
+    for page in sorted(missing_pages):
         image = get_image(page, chapter_link)
-
-        file = filedir / f"{page:0{chapter_length}}.jpg"
-        image.save(file)
-        print(f"Completed {page}/{pages} of Chapter {chapter}.")
-    return
-
+        if image:
+            file = filedir / f"{page:0{chapter_length}}.jpg"
+            image.save(file)
+            print(f"Completed {page}/{pages} of Chapter {chapter}.")
+        else:
+            print(f"Failed to download page {page} of Chapter {chapter}.")
+            break  # Optionally, continue to the next page if a failure is acceptable
 
 def main():
     '''Main function.'''
