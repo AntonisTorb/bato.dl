@@ -1,3 +1,4 @@
+from asyncio import sleep
 from collections import OrderedDict
 from pathlib import Path
 
@@ -41,18 +42,37 @@ def get_image(page: int, chapter_link: str) -> Image:
     returns an Image object based on the retrieved data.
     '''
 
-    page_link = chapter_link + f"/{page}"
+    page_link = f"{chapter_link}/{page}"
+    retries = 3  # Number of retries for downloading the image
+    delay = 5    # Delay between retries in seconds
 
     with HTMLSession() as session:
-        chapter_page = session.get(page_link)
-        chapter_page.html.render()
+        try:
+            chapter_page = session.get(page_link, timeout=10)  # Adjusted timeout for initial page request
+            chapter_page.html.render(timeout=20)  # Adjusted timeout for rendering JavaScript
 
-        element = chapter_page.html.find(".page-img")
-        source = element[0].attrs["src"]
+            element = chapter_page.html.find(".page-img")
+            if not element:
+                raise ValueError("Image element not found on the page")
 
-    image = Image.open(requests.get(source, stream=True).raw)
+            source = element[0].attrs["src"]
 
-    return image
+            for attempt in range(retries):
+                try:
+                    response = requests.get(source, stream=True, timeout=10)  # Adjusted timeout for image request
+                    response.raise_for_status()  # Raise an error for bad status codes
+                    image = Image.open(response.raw)
+                    return image
+                except requests.RequestException as e:
+                    print(f"Attempt {attempt + 1} failed: {e}")
+                    if attempt < retries - 1:
+                        sleep(delay)  # Wait before retrying
+                    else:
+                        raise
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
 
 def download_manga(chapter, chapter_link, title, cur_dir):
     filedir = (cur_dir / f"Manga/{title}/{chapter}")
@@ -109,8 +129,6 @@ def main():
                print(f"Make sure your choice is between 0 and {len(chapter_links)}!")
        except Exception as e:
            print(f"Make sure your choice is between 0 and {len(chapter_links)}!\n{e}")
-
-
 
     for chapter, chapter_link in chapter_links.items():
         if choice == 0:
