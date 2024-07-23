@@ -147,12 +147,11 @@ class BatotoDownloader():
 
                 soup = BeautifulSoup(r.content, "html.parser")
 
-                html_title_parts = soup.find("title").text.split(" - ")
+                html_title = soup.find("title").text
 
-                title: str = html_title_parts[0].strip()
-                chapter_no_re: re.Pattern = re.compile("Chapter ([0-9]*)")
-                chapter_no: str = re.findall(chapter_no_re, html_title_parts[1])[0]
-                manga_dir = self.dl_dir / title
+                title_re: re.Pattern = re.compile("(.*) - Chapter ([0-9]*)")
+                title, chapter_no = re.findall(title_re, html_title)[0]
+                manga_dir = self.dl_dir / title.strip()
                 manga_dir.mkdir(exist_ok=True)
 
                 self.download_chapter(chapter_no, chapter_url, manga_dir, session) 
