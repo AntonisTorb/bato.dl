@@ -8,7 +8,7 @@ import re
 import sys
 import time
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from PIL import Image
 import requests
 
@@ -21,8 +21,8 @@ class BatotoDownloader():
         self.dl_dir = dl_dir
 
         self.logger: logging.Logger = logging.getLogger(__name__)
-        self.chapter_base_url = "https://bato.to"
-        self.headers = {
+        self.chapter_base_url: str = "https://bato.to"
+        self.headers: dict[str, str] = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
         }
 
@@ -33,22 +33,36 @@ class BatotoDownloader():
         Returns a dictionary with the chapter number as key and the URL as value.
         '''
 
+        web_version: int = 3
         chapter_urls = OrderedDict()
-        for chapter in soup.find_all("a", class_="visited chapt", href=True):
-            chapter_no_element = chapter.find("b")
-            chapter_no = chapter_no_element.text.split(" ")[-1]
+        chapter_list = soup.find_all("a", class_="visited:text-accent", href=True)
+        if not chapter_list:
+            web_version = 2
+            chapter_list: list[Tag] = soup.find_all("a", class_="visited chapt", href=True)
+        for chapter in chapter_list:
+            if web_version == 3:
+                chapter_no = chapter.text.split(" ")[-1]
+            elif web_version == 2:
+                chapter_no_element: Tag = chapter.find("b")
+                chapter_no = chapter_no_element.text.split(" ")[-1]
+
             chapter_url = chapter["href"]
             chapter_urls[chapter_no] = f"{self.chapter_base_url}{chapter_url}"
-            ordered_chapter_urls = OrderedDict(reversed(chapter_urls.items()))
+
+            if web_version == 3:
+                ordered_chapter_urls = OrderedDict(chapter_urls.items())
+            elif web_version == 2:
+                ordered_chapter_urls = OrderedDict(reversed(chapter_urls.items()))
+
         return ordered_chapter_urls
 
 
     def download_chapter(self, chapter_no: str, chapter_url: str, manga_dir: Path, session: requests.Session) -> None:
         '''Downloads a chapter from the provided URL and saves it.'''
 
+        web_version: int = 3
         chapter_dir: Path = manga_dir / chapter_no
-
-        existing_pages = []
+        existing_pages: list[str] = []
         if chapter_dir.exists():
             # List of existing pages without file extension.
             existing_pages = [int(item.stem) for item in chapter_dir.glob("*.jpg")]
@@ -60,9 +74,19 @@ class BatotoDownloader():
             self.logger.error(f'Error getting chapter {chapter_no} html page: Response status code: {r.status_code}')
             sys.exit(0)
 
-        reg: re.Pattern = re.compile("const imgHttps = (.*);\n")
-        page_urls: list[str] = json.loads(*re.findall(reg, r.text))
+        reg: re.Pattern = re.compile(r"\[\[0,\\&quot;https:.*.webp\\&quot;\]\]")
+        links_res: list[str] = re.findall(reg, r.text)
+        if not links_res:
+            web_version = 2
 
+        if web_version == 3:
+            urls_str: str = links_res[0].replace("\&quot;", "\"")
+            urls_list = json.loads(urls_str)
+            page_urls = [sublist[1] for sublist in urls_list]
+        elif web_version == 2:
+            reg: re.Pattern = re.compile("const imgHttps = (.*);\n")
+            page_urls: list[str] = json.loads(*re.findall(reg, r.text))
+        
         if len(existing_pages) == len(page_urls):
             return
         
@@ -135,7 +159,7 @@ class BatotoDownloader():
 
                 soup = BeautifulSoup(r.content, "html.parser")
 
-                title: str = soup.find("title").text.replace(" Manga", "")
+                title: str = soup.find("title").text.replace(" Manga", "").replace(" - Read Free Online at Bato.To", "")
                 chapter_urls: OrderedDict[str, str] = self.get_chapter_urls(soup)
 
                 self.download_manga(chapter_urls, title, session)
@@ -149,7 +173,7 @@ class BatotoDownloader():
 
                 html_title = soup.find("title").text
 
-                title_re: re.Pattern = re.compile("(.*) - Chapter ([0-9]*)")
+                title_re: re.Pattern = re.compile(r"(.*) -.* Chapter ([0-9]*)")
                 title, chapter_no = re.findall(title_re, html_title)[0]
                 manga_dir = self.dl_dir / title.strip()
                 manga_dir.mkdir(exist_ok=True)

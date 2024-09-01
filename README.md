@@ -1,5 +1,5 @@
 # bato.dl
-Script to download manga chapters from bato.to.
+Script to download manga chapters from bato.to. Compatible with both v3x and v2x.
 
 ## How to use
 - Install the required packages with the command: `pip install -r requirements.txt`
