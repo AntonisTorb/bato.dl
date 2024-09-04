@@ -173,6 +173,7 @@ class BatotoDownloader():
         try:
             session = requests.Session()
 
+            special_reg = re.compile(r'(\\|\/|\:|\*|\?|\"|\<|\>|\||)')
             if series_url:
                 r: requests.Response = session.get(series_url, headers=self.headers, timeout=5)
                 if r.status_code != 200:
@@ -182,6 +183,7 @@ class BatotoDownloader():
                 soup = BeautifulSoup(r.content, "html.parser")
 
                 title: str = soup.find("title").text.replace(" Manga", "").replace(" - Read Free Online at Bato.To", "")
+                title = re.sub(special_reg, "", title)
                 chapter_urls: OrderedDict[str, str] = self.get_chapter_urls(soup)
 
                 self.download_manga(chapter_urls, title, session)
@@ -198,6 +200,7 @@ class BatotoDownloader():
                 title_re: re.Pattern = re.compile(r"(.*) -.* Chapter ([0-9\.]*)")
                 title, chapter_no = re.findall(title_re, html_title)[0]
                 title = title.strip()
+                title = re.sub(special_reg, "", title)
                 
                 self.download_chapter(chapter_no, chapter_url, title, session) 
             else:
