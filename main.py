@@ -18,13 +18,14 @@ def main():
                         level=logging.INFO,
                         format="%(asctime)s|%(levelname)8s|%(name)s|%(message)s")
 
-    manga_downloader = BatotoDownloader(dl_dir)
-
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument("-s", "--series", type=str, help="Bato.to Series URL. Downloads entire series.", required=False)
         parser.add_argument("-c", "--chapter", type=str, help="Bato.to Chapter URL. Downloads only specified chapter.", required=False)
+        parser.add_argument("-d", "--daiz", action="store_true", help="Enforce daiz naming scheme.", required=False)
         args = parser.parse_args()
+
+        manga_downloader = BatotoDownloader(dl_dir, args.daiz)
 
         if args.series is not None:
             manga_downloader.download(series_url=args.series)

@@ -15,10 +15,11 @@ import requests
 
 class BatotoDownloader():
 
-    def __init__(self, dl_dir: Path) -> None:
+    def __init__(self, dl_dir: Path, daiz: bool) -> None:
         '''Downloader Class for Bato.to manga.'''
 
         self.dl_dir = dl_dir
+        self.daiz = daiz
 
         self.logger: logging.Logger = logging.getLogger(__name__)
         self.chapter_base_url: str = "https://bato.to"
@@ -57,15 +58,33 @@ class BatotoDownloader():
         return ordered_chapter_urls
 
 
-    def download_chapter(self, chapter_no: str, chapter_url: str, manga_dir: Path, session: requests.Session) -> None:
+    def download_chapter(self, chapter_no: str, chapter_url: str, title: str, session: requests.Session) -> None:
         '''Downloads a chapter from the provided URL and saves it.'''
 
         web_version: int = 3
-        chapter_dir: Path = manga_dir / chapter_no
+        manga_dir = self.dl_dir / title.strip()
+        manga_dir.mkdir(exist_ok=True)
+
+        if self.daiz:
+            if "." in str(chapter_no):
+                decimals = len(chapter_no.split(".")[-1])
+                whole_len = 4 + decimals
+                chapter_no = f'{float(chapter_no):0{whole_len}.{decimals}f}'
+            else:
+                chapter_no = f'{int(chapter_no):03}'
+
+            chapter_dir: Path = manga_dir / f'{title} - {chapter_no}'
+
+        else:
+            chapter_dir: Path = manga_dir / chapter_no
+
         existing_pages: list[str] = []
         if chapter_dir.exists():
             # List of existing pages without file extension.
-            existing_pages = [int(item.stem) for item in chapter_dir.glob("*.jpg")]
+            if self.daiz:
+                existing_pages = [item.stem for item in chapter_dir.glob("*.jpg")]
+            else:
+                existing_pages = [int(item.stem) for item in chapter_dir.glob("*.jpg")]
         else:
             chapter_dir.mkdir(exist_ok=True)
         
@@ -90,12 +109,7 @@ class BatotoDownloader():
         if len(existing_pages) == len(page_urls):
             return
         
-        page_format: int = 1 + int(log10(len(page_urls)))  # How many leading zeros in page file name.
-
-        for page_no, url in enumerate(page_urls):
-            if page_no + 1 in existing_pages:
-                continue
-
+        for page_no, url in enumerate(page_urls[len(existing_pages):], start=len(existing_pages)):
             retries: int = 5
             while retries:
                 try:
@@ -113,12 +127,16 @@ class BatotoDownloader():
             
             if not retries or r.status_code != 200:
                 if r.status_code != 200:
-                    self.logger.error(f'Error for Chapter {chapter_no}, Page {page_no}: Response status code: {r.status_code}')
-                print("Error getting page {page_no} of chapter {chapter_no}. Please check the log. Exiting...")
+                    self.logger.error(f'Error for Chapter {chapter_no}, Page {page_no+1}: Response status code: {r.status_code}')
+                print(f'Error getting page {page_no+1} of chapter {chapter_no}. Please check the log. Exiting...')
                 sys.exit(0)
 
             img: Image.Image = Image.open(BytesIO(r.content))
-            img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}.jpg'
+            if self.daiz:
+                img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}.jpg'
+            else:
+                page_format: int = 1 + int(log10(len(page_urls)))  # How many leading zeros in page file name.
+                img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}.jpg'
             img.save(img_path)
 
 
@@ -129,20 +147,23 @@ class BatotoDownloader():
 
         existing_chapters: list[str] = []
         if manga_dir.exists():
-            existing_chapters = [item.name for item in manga_dir.iterdir() if item.is_dir()]
+            if self.daiz:
+                existing_chapters = [item.name.split("-")[-1].strip() for item in manga_dir.iterdir() if item.is_dir()]
+            else:
+                existing_chapters = [item.name for item in manga_dir.iterdir() if item.is_dir()]
         else:
             manga_dir.mkdir(exist_ok=True)
 
         last = []
         for chapter_no, chapter_url in chapter_urls.items():
-            if chapter_no in existing_chapters:
+            if float(chapter_no) in [float(chapter) for chapter in existing_chapters]:
                 last = [chapter_no, chapter_url]
                 continue
             if last:  # Check last for missing pages.
-                self.download_chapter(last[0], last[1], manga_dir, session)
+                self.download_chapter(last[0], last[1], title, session)
                 last = []
 
-            self.download_chapter(chapter_no, chapter_url, manga_dir, session)
+            self.download_chapter(chapter_no, chapter_url, title, session)
             
 
     def download(self, *, series_url: str = "", chapter_url: str = "") -> None:
@@ -173,12 +194,11 @@ class BatotoDownloader():
 
                 html_title = soup.find("title").text
 
-                title_re: re.Pattern = re.compile(r"(.*) -.* Chapter ([0-9]*)")
+                title_re: re.Pattern = re.compile(r"(.*) -.* Chapter ([0-9\.]*)")
                 title, chapter_no = re.findall(title_re, html_title)[0]
-                manga_dir = self.dl_dir / title.strip()
-                manga_dir.mkdir(exist_ok=True)
-
-                self.download_chapter(chapter_no, chapter_url, manga_dir, session) 
+                title = title.strip()
+                
+                self.download_chapter(chapter_no, chapter_url, title, session) 
             else:
                 return
             
