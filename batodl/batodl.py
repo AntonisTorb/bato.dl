@@ -93,13 +93,14 @@ class BatotoDownloader():
             self.logger.error(f'Error getting chapter {chapter_no} html page: Response status code: {r.status_code}')
             sys.exit(0)
 
-        reg: re.Pattern = re.compile(r"\[\[0,\\&quot;https:.*.webp\\&quot;\]\]")
-        links_res: list[str] = re.findall(reg, r.text)
-        if not links_res:
+        reg: re.Pattern = re.compile(r"\[\[0,\\&quot;https:.*.(webp|jpg|jpeg|png)\\&quot;\]\]")
+        links_match: re.Match | None = re.search(reg, r.text)
+        if links_match is None:
             web_version = 2
 
         if web_version == 3:
-            urls_str: str = links_res[0].replace("\&quot;", "\"")
+            links_res: str = links_match.string[links_match.start():links_match.end()]
+            urls_str: str = links_res.replace("\&quot;", "\"")
             urls_list = json.loads(urls_str)
             page_urls = [sublist[1] for sublist in urls_list]
         elif web_version == 2:
