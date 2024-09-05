@@ -195,9 +195,8 @@ class BatotoDownloader():
 
                 soup = BeautifulSoup(r.content, "html.parser")
 
-                html_title = soup.find("title").text
-
-                title_re: re.Pattern = re.compile(r"(.*) -.* Chapter ([0-9\.]*)")
+                html_title = soup.find("title").text.replace(" - Read Free Manga Online at Bato.To", "")
+                title_re: re.Pattern = re.compile(r"(.*)-[^1-9]*([0-9\.]*)")
                 title, chapter_no = re.findall(title_re, html_title)[0]
                 title = title.strip()
                 title = re.sub(special_reg, "", title)
