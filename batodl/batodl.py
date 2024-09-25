@@ -9,7 +9,8 @@ import sys
 import time
 
 from bs4 import BeautifulSoup, Tag
-from PIL import Image
+import imghdr
+import os
 import requests
 
 
@@ -132,13 +133,16 @@ class BatotoDownloader():
                 print(f'Error getting page {page_no+1} of chapter {chapter_no}. Please check the log. Exiting...')
                 sys.exit(0)
 
-            img: Image.Image = Image.open(BytesIO(r.content))
             if self.daiz:
-                img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}.jpg'
+                img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}'
             else:
                 page_format: int = 1 + int(log10(len(page_urls)))  # How many leading zeros in page file name.
-                img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}.jpg'
-            img.save(img_path)
+                img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}'
+            with open(img_path, "wb") as fimg:
+                fimg.write(BytesIO(r.content).getbuffer())
+            img_type = imghdr.what(img_path)
+            if img_type != '':
+                os.rename(img_path, f'{img_path}.{img_type}')
 
 
     def download_manga(self, chapter_urls: OrderedDict[str, str], title: str, session: requests.Session) -> None:
