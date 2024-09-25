@@ -23,9 +23,11 @@ def main():
         parser.add_argument("-s", "--series", type=str, help="Bato.to Series URL. Downloads entire series.", required=False)
         parser.add_argument("-c", "--chapter", type=str, help="Bato.to Chapter URL. Downloads only specified chapter.", required=False)
         parser.add_argument("-d", "--daiz", action="store_true", help="Enforce daiz naming scheme.", required=False)
+        parser.add_argument("-e", "--extension", type=str, help="Image type extension. If not specified, the original will be used", required=False)
+
         args = parser.parse_args()
 
-        manga_downloader = BatotoDownloader(dl_dir, args.daiz)
+        manga_downloader = BatotoDownloader(dl_dir, args.daiz, args.extension)
 
         if args.series is not None:
             manga_downloader.download(series_url=args.series)

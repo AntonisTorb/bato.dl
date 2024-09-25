@@ -15,11 +15,12 @@ import requests
 
 class BatotoDownloader():
 
-    def __init__(self, dl_dir: Path, daiz: bool) -> None:
+    def __init__(self, dl_dir: Path, daiz: bool, extension:str|None) -> None:
         '''Downloader Class for Bato.to manga.'''
 
         self.dl_dir = dl_dir
         self.daiz = daiz
+        self.extension = extension
 
         self.logger: logging.Logger = logging.getLogger(__name__)
         self.chapter_base_url: str = "https://bato.to"
@@ -78,13 +79,17 @@ class BatotoDownloader():
         else:
             chapter_dir: Path = manga_dir / chapter_no
 
-        existing_pages: list[str] = []
+        existing_pages: list[str|int] = []
         if chapter_dir.exists():
             # List of existing pages without file extension.
             if self.daiz:
                 existing_pages = [item.stem for item in chapter_dir.glob("*.jpg")]
             else:
-                existing_pages = [int(item.stem) for item in chapter_dir.glob("*.jpg")]
+                try:
+                    for item in chapter_dir.glob("*.jpg"):
+                        existing_pages.append(int(item.stem))
+                except ValueError:  # If irrelevant file somehow in chapter directory.
+                    pass
         else:
             chapter_dir.mkdir(exist_ok=True)
         
@@ -100,7 +105,7 @@ class BatotoDownloader():
 
         if web_version == 3:
             links_res: str = links_match.string[links_match.start():links_match.end()]
-            urls_str: str = links_res.replace("\&quot;", "\"")
+            urls_str: str = links_res.replace(r"\&quot;", "\"")
             urls_list = json.loads(urls_str)
             page_urls = [sublist[1] for sublist in urls_list]
         elif web_version == 2:
@@ -134,10 +139,17 @@ class BatotoDownloader():
 
             img: Image.Image = Image.open(BytesIO(r.content))
             if self.daiz:
-                img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}.jpg'
+                if self.extension is None:
+                    img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}.{url.split(".")[-1]}'
+                else:
+                    img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}.{self.extension}'
             else:
                 page_format: int = 1 + int(log10(len(page_urls)))  # How many leading zeros in page file name.
-                img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}.jpg'
+                if self.extension is None:
+                    img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}.{url.split(".")[-1]}'
+                else:
+                    img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}.{self.extension}'
+
             img.save(img_path)
 
 
@@ -148,16 +160,20 @@ class BatotoDownloader():
 
         existing_chapters: list[str] = []
         if manga_dir.exists():
-            if self.daiz:
-                existing_chapters = [item.name.split("-")[-1].strip() for item in manga_dir.iterdir() if item.is_dir()]
-            else:
-                existing_chapters = [item.name for item in manga_dir.iterdir() if item.is_dir()]
+            existing_chapters = [item.name.split("-")[-1].strip() for item in manga_dir.iterdir() if item.is_dir()]
         else:
             manga_dir.mkdir(exist_ok=True)
 
         last = []
         for chapter_no, chapter_url in chapter_urls.items():
-            if float(chapter_no) in [float(chapter) for chapter in existing_chapters]:
+            existing_chapters_float: list[float] = []
+            for chapter in existing_chapters:
+                try:
+                    existing_chapters_float.append(float(chapter))
+                except ValueError:  # If irrelevant directory somehow in series directory.
+                    pass
+
+            if float(chapter_no) in existing_chapters_float:
                 last = [chapter_no, chapter_url]
                 continue
             if last:  # Check last for missing pages.

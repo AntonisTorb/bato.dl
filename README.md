@@ -18,6 +18,12 @@ Script to download manga chapters from bato.to. Compatible with both v3x and v2x
 
     *Example 4:* `python main.py -s "series url goes here" -d`
 
+- **Optional:** You can choose your own file extension for the resulting images by specifying it with the `-e` argument (please refer to the [Pillow Documentation](https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html) for a the acceptable file formats). If not specified, the original file extension will be used.
+
+    *Example 3:* `python main.py -c "chapter url goes here" -e 'jpg'`
+
+    *Example 4:* `python main.py -s "series url goes here" -d -e 'png'`
+
 - **Optional:** After the download is finished you may run `python mangaconverter.py` to convert the manga images into a single pdf-file each chapter. (Don't forget to edit your folder path in line 7)
 
 ## Contributions
@@ -26,5 +32,6 @@ Thank you everyone below for improving this project!
 - [hoemotion](https://github.com/AntonisTorb/bato.dl/pull/1)
 - [Cleanup-Crew-From-Discord](https://github.com/AntonisTorb/bato.dl/pull/2)
 - [Emylou-s](https://github.com/AntonisTorb/bato.dl/pull/3)
+- [Godangel ](https://github.com/AntonisTorb/bato.dl/pull/6)
 
 ## Thank you and enjoy :)
