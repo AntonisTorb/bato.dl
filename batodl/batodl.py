@@ -83,10 +83,10 @@ class BatotoDownloader():
         if chapter_dir.exists():
             # List of existing pages without file extension.
             if self.daiz:
-                existing_pages = [item.stem for item in chapter_dir.glob("*.jpg")]
+                existing_pages = [item.stem for item in chapter_dir.glob("*.*")]
             else:
                 try:
-                    for item in chapter_dir.glob("*.jpg"):
+                    for item in chapter_dir.glob("*.*"):
                         existing_pages.append(int(item.stem))
                 except ValueError:  # If irrelevant file somehow in chapter directory.
                     pass
@@ -137,7 +137,6 @@ class BatotoDownloader():
                 print(f'Error getting page {page_no+1} of chapter {chapter_no}. Please check the log. Exiting...')
                 sys.exit(0)
 
-            img: Image.Image = Image.open(BytesIO(r.content))
             if self.daiz:
                 if self.extension is None:
                     img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}.{url.split(".")[-1]}'
@@ -150,6 +149,11 @@ class BatotoDownloader():
                 else:
                     img_path: Path = chapter_dir / f'{page_no+1:0{page_format}}.{self.extension}'
 
+            if self.extension is None or url.split(".")[-1] == self.extension:
+                with open(img_path, "wb") as f:
+                    f.write(BytesIO(r.content).getbuffer())
+                    continue
+            img: Image.Image = Image.open(BytesIO(r.content))
             img.save(img_path)
 
 
