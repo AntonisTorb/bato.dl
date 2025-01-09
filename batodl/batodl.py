@@ -67,12 +67,15 @@ class BatotoDownloader():
         manga_dir.mkdir(exist_ok=True)
 
         if self.daiz:
-            if "." in str(chapter_no):
-                decimals = len(chapter_no.split(".")[-1])
-                whole_len = 4 + decimals
-                chapter_no = f'{float(chapter_no):0{whole_len}.{decimals}f}'
-            else:
-                chapter_no = f'{int(chapter_no):03}'
+            try:
+                if "." in str(chapter_no):
+                    decimals = len(chapter_no.split(".")[-1])
+                    whole_len = 4 + decimals
+                    chapter_no = f'{float(chapter_no):0{whole_len}.{decimals}f}'
+                else:
+                    chapter_no = f'{int(chapter_no):03}'
+            except ValueError: # Error when last part of chapter name is not a number (like "Finale")
+                pass
 
             chapter_dir: Path = manga_dir / f'{title} - {chapter_no}'
 
@@ -176,10 +179,14 @@ class BatotoDownloader():
                     existing_chapters_float.append(float(chapter))
                 except ValueError:  # If irrelevant directory somehow in series directory.
                     pass
-
-            if float(chapter_no) in existing_chapters_float:
-                last = [chapter_no, chapter_url]
+            
+            try:
+                if float(chapter_no) in existing_chapters_float:
+                    last = [chapter_no, chapter_url]
+                    continue
+            except ValueError: # Error when last part of chapter name is not a number (like "Finale")
                 continue
+
             if last:  # Check last for missing pages.
                 self.download_chapter(last[0], last[1], title, session)
                 last = []
