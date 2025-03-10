@@ -29,7 +29,7 @@ class BatotoDownloader():
         }
 
 
-    def get_chapter_urls(self, soup: BeautifulSoup) -> OrderedDict[str, str]:
+    def get_chapter_urls(self, soup: BeautifulSoup) -> OrderedDict[str, dict[str, str]]:
         '''
         Retrieves the list of chapter URLs from Bato.to for the provided series.
         Returns a dictionary with the chapter number as key and the URL as value.
@@ -43,23 +43,23 @@ class BatotoDownloader():
             chapter_list: list[Tag] = soup.find_all("a", class_="visited chapt", href=True)
         for chapter in chapter_list:
             if web_version == 3:
-                chapter_no = chapter.text.split(" ")[-1]
+                chapter_no = chapter.attrs["href"].split("_")[-1]
             elif web_version == 2:
                 chapter_no_element: Tag = chapter.find("b")
                 chapter_no = chapter_no_element.text.split(" ")[-1]
 
             chapter_url = chapter["href"]
-            chapter_urls[chapter_no] = f"{self.chapter_base_url}{chapter_url}"
+            chapter_urls[chapter_no] = {"link": f"{self.chapter_base_url}{chapter_url}", "title": chapter.text}
 
-            if web_version == 3:
-                ordered_chapter_urls = OrderedDict(chapter_urls.items())
-            elif web_version == 2:
-                ordered_chapter_urls = OrderedDict(reversed(chapter_urls.items()))
+        if web_version == 3:
+            ordered_chapter_urls = OrderedDict(chapter_urls.items())
+        else:
+            ordered_chapter_urls = OrderedDict(reversed(chapter_urls.items()))
 
         return ordered_chapter_urls
 
 
-    def download_chapter(self, chapter_no: str, chapter_url: str, title: str, session: requests.Session) -> None:
+    def download_chapter(self, chapter_no: str, chapter_url: str, title: str, session: requests.Session, chapter_title: str) -> None:
         '''Downloads a chapter from the provided URL and saves it.'''
 
         web_version: int = 3
@@ -77,10 +77,10 @@ class BatotoDownloader():
             except ValueError: # Error when last part of chapter name is not a number (like "Finale")
                 pass
 
-            chapter_dir: Path = manga_dir / f'{title} - {chapter_no}'
+            chapter_dir: Path = manga_dir / f'{title} - {chapter_no} - {chapter_title}'
 
         else:
-            chapter_dir: Path = manga_dir / chapter_no
+            chapter_dir: Path = manga_dir / f"{chapter_no} - {chapter_title}"
 
         existing_pages: list[str|int] = []
         if chapter_dir.exists():
@@ -111,7 +111,7 @@ class BatotoDownloader():
             urls_str: str = links_res.replace(r"\&quot;", "\"")
             urls_list = json.loads(urls_str)
             page_urls = [sublist[1] for sublist in urls_list]
-        elif web_version == 2:
+        else:
             reg: re.Pattern = re.compile("const imgHttps = (.*);\n")
             page_urls: list[str] = json.loads(*re.findall(reg, r.text))
         
@@ -160,7 +160,7 @@ class BatotoDownloader():
             img.save(img_path)
 
 
-    def download_manga(self, chapter_urls: OrderedDict[str, str], title: str, session: requests.Session) -> None:
+    def download_manga(self, chapter_urls: OrderedDict[str, dict[str, str]], title: str, session: requests.Session) -> None:
         '''Downloads all the chapters in the series from the provided URL and saves them.'''
 
         manga_dir: Path = self.dl_dir / title
@@ -172,26 +172,30 @@ class BatotoDownloader():
             manga_dir.mkdir(exist_ok=True)
 
         last = []
-        for chapter_no, chapter_url in chapter_urls.items():
-            existing_chapters_float: list[float] = []
-            for chapter in existing_chapters:
-                try:
-                    existing_chapters_float.append(float(chapter))
-                except ValueError:  # If irrelevant directory somehow in series directory.
-                    pass
-            
+
+        existing_chapters_float: list[float] = []
+        for chapter in existing_chapters:
+            try:
+                existing_chapters_float.append(float(chapter))
+            except ValueError:  # If irrelevant directory somehow in series directory.
+                pass
+
+        for chapter_no, chapter_info in chapter_urls.items():
+            chapter_url = chapter_info['link']
+            chapter_name = chapter_info['title']
+
             try:
                 if float(chapter_no) in existing_chapters_float:
-                    last = [chapter_no, chapter_url]
+                    last = [chapter_no, chapter_url, chapter_name]
                     continue
-            except ValueError: # Error when last part of chapter name is not a number (like "Finale")
+            except ValueError:  # Error when last part of chapter name is not a number (like "Finale")
                 continue
 
             if last:  # Check last for missing pages.
-                self.download_chapter(last[0], last[1], title, session)
+                self.download_chapter(last[0], last[1], title, session, last[2])
                 last = []
 
-            self.download_chapter(chapter_no, chapter_url, title, session)
+            self.download_chapter(chapter_no, chapter_url, title, session, chapter_name)
             
 
     def download(self, *, series_url: str = "", chapter_url: str = "") -> None:
@@ -211,8 +215,7 @@ class BatotoDownloader():
 
                 title: str = soup.find("title").text.replace(" Manga", "").replace(" - Read Free Online at Bato.To", "")
                 title = re.sub(special_reg, "", title)
-                chapter_urls: OrderedDict[str, str] = self.get_chapter_urls(soup)
-
+                chapter_urls: OrderedDict[str, dict[str, str]] = self.get_chapter_urls(soup)
                 self.download_manga(chapter_urls, title, session)
             elif chapter_url:
                 r: requests.Response = session.get(chapter_url, headers=self.headers, timeout=5)
