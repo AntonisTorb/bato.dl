@@ -57,6 +57,37 @@ class BatotoDownloader():
                 ordered_chapter_urls = OrderedDict(reversed(chapter_urls.items()))
 
         return ordered_chapter_urls
+    
+
+    def slice_chapter_dict(self, chapter_urls: OrderedDict, starting_chapter: str|None, ending_chapter: str|None) -> OrderedDict:
+        '''If `starting_chapter` and/or `ending_chapter` are specified, modifies and returns the `chapter_urls` dictionary
+        with only the chapters inside the range.
+        '''
+
+        if starting_chapter is not None:
+            temp_dict = OrderedDict()
+            found = False
+            for key in chapter_urls.keys():
+                if key != starting_chapter and not found:
+                    continue
+                else:
+                    found = True
+                temp_dict[key] = chapter_urls[key]
+            if found == False:
+                raise ValueError("Error: Specified `starting_chapter` does not exist.")
+            chapter_urls = temp_dict
+        if ending_chapter is not None:
+            temp_dict = OrderedDict()
+            for key in chapter_urls.keys():
+                temp_dict[key] = chapter_urls[key]
+                if key == ending_chapter:
+                    break
+            chapter_urls = temp_dict
+
+        if not chapter_urls.keys():
+            raise ValueError("Error: No chapters selected, please check the `starting_chapter` and `ending chapter` values you provided.")
+
+        return chapter_urls
 
 
     def download_chapter(self, chapter_no: str, chapter_url: str, title: str, session: requests.Session) -> None:
@@ -194,7 +225,7 @@ class BatotoDownloader():
             self.download_chapter(chapter_no, chapter_url, title, session)
             
 
-    def download(self, *, series_url: str = "", chapter_url: str = "") -> None:
+    def download(self, *, series_url: str = "", chapter_url: str = "", starting_chapter: str|None, ending_chapter: str|None) -> None:
         '''Download manager to determine the steps required to get entire series or single chapter.'''
 
         try:
@@ -212,6 +243,9 @@ class BatotoDownloader():
                 title: str = soup.find("title").text.replace(" Manga", "").replace(" - Read Free Online at Bato.To", "")
                 title = re.sub(special_reg, "", title)
                 chapter_urls: OrderedDict[str, str] = self.get_chapter_urls(soup)
+
+                if starting_chapter is not None or ending_chapter is not None:
+                    chapter_urls = self.slice_chapter_dict(chapter_urls, starting_chapter, ending_chapter)
 
                 self.download_manga(chapter_urls, title, session)
             elif chapter_url:

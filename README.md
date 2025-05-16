@@ -12,17 +12,22 @@ Script to download manga chapters from bato.to. Compatible with both v3x and v2x
     
     *Example 2:* `python main.py -s "series url goes here"`
 
+    If you want to download only some chapters of a series, you can use the `-sc` and `-ec` to specify the starting chapter and ending chapter:
+    - `-s "series url" -sc "starting chapter number" -ec "ending chapter number"`
+
+    *Example 3:* `python main.py -s "series url goes here" -sc 5 -ec 15.5`
+
 - **Optional:** If you want to enforce a [Daiz-like naming scheme](https://github.com/Daiz/manga-naming-scheme), please also add the `-d` command line argument.
 
-    *Example 3:* `python main.py -c "chapter url goes here" -d`
+    *Example 4:* `python main.py -c "chapter url goes here" -d`
 
-    *Example 4:* `python main.py -s "series url goes here" -d`
+    *Example 5:* `python main.py -s "series url goes here" -d`
 
 - **Optional:** You can choose your own file extension for the resulting images by specifying it with the `-e` argument (please refer to the [Pillow Documentation](https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html) for a the acceptable file formats). If not specified, the original file extension will be used.
 
-    *Example 3:* `python main.py -c "chapter url goes here" -e 'jpg'`
+    *Example 6:* `python main.py -c "chapter url goes here" -e 'jpg'`
 
-    *Example 4:* `python main.py -s "series url goes here" -d -e 'png'`
+    *Example 7:* `python main.py -s "series url goes here" -d -e 'png'`
 
 - **Optional:** After the download is finished you may run `python mangaconverter.py` to convert the manga images into a single pdf-file each chapter. (Don't forget to edit your folder path in line 7)
 
