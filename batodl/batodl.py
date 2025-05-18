@@ -15,11 +15,11 @@ import requests
 
 class BatotoDownloader():
 
-    def __init__(self, dl_dir: Path, daiz: bool, extension:str|None) -> None:
+    def __init__(self, dl_dir: Path, chapter_name_format: str, extension:str|None) -> None:
         '''Downloader Class for Bato.to manga.'''
 
         self.dl_dir = dl_dir
-        self.daiz = daiz
+        self.chapter_name_format = chapter_name_format
         self.extension = extension
 
         self.logger: logging.Logger = logging.getLogger(__name__)
@@ -43,10 +43,16 @@ class BatotoDownloader():
             chapter_list: list[Tag] = soup.find_all("a", class_="visited chapt", href=True)
         for chapter in chapter_list:
             if web_version == 3:
-                chapter_no = chapter.text.split(" ")[-1]
+                if self.chapter_name_format == "raw":
+                    chapter_no = chapter.text
+                else:
+                    chapter_no = chapter.text.split(" ")[-1]
             elif web_version == 2:
                 chapter_no_element: Tag = chapter.find("b")
-                chapter_no = chapter_no_element.text.split(" ")[-1]
+                if self.chapter_name_format == "raw":
+                    chapter_no = chapter_no_element.text
+                else:
+                    chapter_no = chapter_no_element.text.split(" ")[-1]
 
             chapter_url = chapter["href"]
             chapter_urls[chapter_no] = f"{self.chapter_base_url}{chapter_url}"
@@ -97,7 +103,7 @@ class BatotoDownloader():
         manga_dir = self.dl_dir / title.strip()
         manga_dir.mkdir(exist_ok=True)
 
-        if self.daiz:
+        if self.chapter_name_format == "daiz" and self.chapter_name_format != "raw":
             try:
                 if "." in str(chapter_no):
                     decimals = len(chapter_no.split(".")[-1])
@@ -116,7 +122,7 @@ class BatotoDownloader():
         existing_pages: list[str|int] = []
         if chapter_dir.exists():
             # List of existing pages without file extension.
-            if self.daiz:
+            if self.chapter_name_format == "daiz" and self.chapter_name_format != "raw":
                 existing_pages = [item.stem for item in chapter_dir.glob("*.*")]
             else:
                 try:
@@ -171,7 +177,7 @@ class BatotoDownloader():
                 print(f'Error getting page {page_no+1} of chapter {chapter_no}. Please check the log. Exiting...')
                 sys.exit(0)
 
-            if self.daiz:
+            if self.chapter_name_format == "daiz" and self.chapter_name_format != "raw":
                 if self.extension is None:
                     img_path: Path = chapter_dir / f'{title} - {chapter_no} - {page_no+1:03}.{url.split(".")[-1]}'
                 else:

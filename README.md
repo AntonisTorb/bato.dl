@@ -17,11 +17,11 @@ Script to download manga chapters from bato.to. Compatible with both v3x and v2x
 
     *Example 3:* `python main.py -s "series url goes here" -sc 5 -ec 15.5`
 
-- **Optional:** If you want to enforce a [Daiz-like naming scheme](https://github.com/Daiz/manga-naming-scheme), please also add the `-d` command line argument.
+- **Optional:** If you want to enforce a [Daiz-like naming scheme](https://github.com/Daiz/manga-naming-scheme), please also add the `-d` command line argument. If you want to have the raw chapter title as the chapter directory name, please add the `-rt` command line argument (only for series, mostly useful for those that have an unconventional chapter naming convension that causes issues).
 
     *Example 4:* `python main.py -c "chapter url goes here" -d`
 
-    *Example 5:* `python main.py -s "series url goes here" -d`
+    *Example 5:* `python main.py -s "series url goes here" -rt`
 
 - **Optional:** You can choose your own file extension for the resulting images by specifying it with the `-e` argument (please refer to the [Pillow Documentation](https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html) for a the acceptable file formats). If not specified, the original file extension will be used.
 
