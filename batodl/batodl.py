@@ -203,25 +203,22 @@ class BatotoDownloader():
         manga_dir: Path = self.dl_dir / title
 
         existing_chapters: list[str] = []
-        if manga_dir.exists():
-            existing_chapters = [item.name.split("-")[-1].strip() for item in manga_dir.iterdir() if item.is_dir()]
+        if self.chapter_name_format != "raw":
+            if manga_dir.exists():
+                existing_chapters = [item.name.split("-")[-1].strip() for item in manga_dir.iterdir() if item.is_dir()]
+            else:
+                manga_dir.mkdir(exist_ok=True)
         else:
-            manga_dir.mkdir(exist_ok=True)
+            if manga_dir.exists():
+                existing_chapters = [item.name for item in manga_dir.iterdir() if item.is_dir()]
+            else:
+                manga_dir.mkdir(exist_ok=True)
 
         last = []
         for chapter_no, chapter_url in chapter_urls.items():
-            existing_chapters_float: list[float] = []
-            for chapter in existing_chapters:
-                try:
-                    existing_chapters_float.append(float(chapter))
-                except ValueError:  # If irrelevant directory somehow in series directory.
-                    pass
-            
-            try:
-                if float(chapter_no) in existing_chapters_float:
-                    last = [chapter_no, chapter_url]
-                    continue
-            except ValueError: # Error when last part of chapter name is not a number (like "Finale")
+
+            if chapter_no in existing_chapters:
+                last = [chapter_no, chapter_url]
                 continue
 
             if last:  # Check last for missing pages.
